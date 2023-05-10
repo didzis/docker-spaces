@@ -236,7 +236,7 @@ func (p *HTTPPipe) ParseResponse() (response *ParsedHTTPResponse, err error) {
 	contentLength := response.Headers.Get("Content-Length")
 	transferEncoding := response.Headers.Get("Transfer-Encoding")
 	// https://stackoverflow.com/a/11375745
-	if response.StatusCode == 204 && len(contentLength) == 0 && response.VersionMajor == 1 && response.VersionMinor == 1 {
+	if (response.StatusCode == 204 || response.StatusCode == 304) && len(contentLength) == 0 && response.VersionMajor == 1 && response.VersionMinor == 1 {
 		p.state = HTTPReaderStateHead
 		p.bodyToRead = 0
 	} else if len(contentLength) == 0 && response.VersionMajor == 1 && response.VersionMinor == 1 && transferEncoding == "chunked" {
@@ -252,6 +252,7 @@ func (p *HTTPPipe) ParseResponse() (response *ParsedHTTPResponse, err error) {
 		p.state = HTTPReaderStateBody
 		// contentLength := response.Headers.Get("Content-Length")
 		if len(contentLength) == 0 {
+			log.Warn("got response without missing Content-Length header, entering body stream mode, response:", response.Short())
 			p.state = HTTPReaderStateBodyStream
 			// err = fmt.Errorf("http-pipe-parse-response: content length is empty")
 			// TODO: when the stream closes
