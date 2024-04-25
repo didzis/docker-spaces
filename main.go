@@ -46,6 +46,7 @@ func main() {
 	var releaseTimeout int = 1800
 	var stopTimeout int = 0
 	var root string
+	var loggerLevels stringFlags
 
 	// <host-start-port>:<target-slot(docker-runner)-count>:<docker-host-url>
 
@@ -70,10 +71,31 @@ func main() {
 	flag.IntVar(&stopTimeout, "stop", stopTimeout, "container stop timeout before kill in seconds")
 	flag.Var(&clusterDefs, "cluster", "cluster configuration in following format: <host-start-port>:<target-slot(docker-runner)-count>:<docker-host-url>")
 	flag.StringVar(&root, "root", root, "redirect root / to specified host")
+	flag.Var(&loggerLevels, "log", "set logger levels <logger name>=<level>,...")
 
 	flag.Parse()
 
 	var err error
+
+	for _, ll := range loggerLevels {
+		ldefs := strings.Split(ll, ",")
+		for _, ldef := range ldefs {
+			kv := strings.SplitN(ldef, "=", 2)
+			if len(kv) == 1 {
+				if level, ok := ProxyLoggerLevelStringToLevel[strings.ToLower(kv[1])]; ok {
+					ProxyLoggerLevelOverride[""] = level
+				} else {
+					log.Fatalf("invalid logger level string %s", kv[1])
+				}
+			} else {
+				if level, ok := ProxyLoggerLevelStringToLevel[strings.ToLower(kv[1])]; ok {
+					ProxyLoggerLevelOverride[kv[0]] = level
+				} else {
+					log.Fatalf("invalid logger level string %s", kv[1])
+				}
+			}
+		}
+	}
 
 	proxyAddress := fmt.Sprintf(":%d", port) // ":8888"
 
