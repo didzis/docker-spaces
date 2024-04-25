@@ -11,7 +11,8 @@ import (
 type LoggerLevel int
 
 const (
-	TraceLogLevel LoggerLevel = iota
+	UnsetLogLevel LoggerLevel = iota
+	TraceLogLevel             //LoggerLevel = iota
 	DebugLogLevel
 	InfoLogLevel
 	PrintLogLevel
@@ -21,8 +22,30 @@ const (
 	PanicLogLevel
 )
 
+var logLevelStrings = [...]string{
+	coloredText("UNSET", TextColor{Color: White, Bright: false}),
+	coloredText("TRACE", TextColor{Color: Black, Bright: true}),
+	coloredText("DEBUG", TextColor{Color: Cyan, Bright: true}),
+	coloredText("INFO", TextColor{Color: Green, Bright: true}),
+	coloredText("PRINT", TextColor{Color: White}),
+	coloredText("WARN", TextColor{Color: Yellow, Bright: true}),
+	coloredText("ERROR", TextColor{Color: Red, Bright: true}),
+	coloredText("FATAL", TextColor{Color: Red, Bold: true, Bright: true}),
+	coloredText("PANIC", TextColor{Color: Red, Bold: true, Bright: true, Blink: true}),
+	// coloredText("TRACE", Black, NoColor, false, true, false),
+	// coloredText("DEBUG", Cyan, NoColor, false, true, false),
+	// coloredText("INFO", Green, NoColor, false, true, false),
+	// coloredText("PRINT", White, NoColor, false, false, false),
+	// coloredText("WARN", Yellow, NoColor, false, true, false),
+	// coloredText("ERROR", Red, NoColor, false, true, false),
+	// coloredText("FATAL", Red, NoColor, true, true, false),
+	// coloredText("PANIC", Red, NoColor, true, true, true),
+}
+
 func (s LoggerLevel) String() string {
-	return [...]string{"TRACE", "DEBUG", "INFO", "PRINT", "WARN", "ERROR", "FATAL", "PANIC"}[s]
+	// fmt.Println(logLevelStrings)
+	return logLevelStrings[s]
+	// return [...]string{colorText("TRACE", Black, NoColor, false, true), "DEBUG", "INFO", "PRINT", "WARN", "ERROR", "FATAL", "PANIC"}[s]
 }
 
 type Logger interface {
@@ -31,6 +54,7 @@ type Logger interface {
 }
 
 type LevelCoreLogger interface {
+	Logger
 	LLog(LoggerLevel, ...any)
 	LLogf(LoggerLevel, string, ...any)
 	SetLevel(LoggerLevel)
@@ -39,11 +63,12 @@ type LevelCoreLogger interface {
 }
 
 type LevelLogger interface {
-	LLog(LoggerLevel, ...any)
-	LLogf(LoggerLevel, string, ...any)
-	SetLevel(LoggerLevel)
-	GetLevel() LoggerLevel
-	GetLogger() Logger
+	LevelCoreLogger
+	// LLog(LoggerLevel, ...any)
+	// LLogf(LoggerLevel, string, ...any)
+	// SetLevel(LoggerLevel)
+	// GetLevel() LoggerLevel
+	// GetLogger() Logger
 	Trace(...any)
 	Tracef(string, ...any)
 	Debug(...any)
@@ -61,31 +86,32 @@ type LevelLogger interface {
 }
 
 type LevelLoggerCompatible interface {
-	LLog(LoggerLevel, ...any)
-	LLogf(LoggerLevel, string, ...any)
-	SetLevel(LoggerLevel)
-	GetLevel() LoggerLevel
-	GetLogger() Logger
-	Trace(...any)
-	Tracef(string, ...any)
-	Debug(...any)
-	Debugf(string, ...any)
-	Info(...any)
-	Infof(string, ...any)
-	Warn(...any)
-	Warnf(string, ...any)
-	Error(...any)
-	Errorf(string, ...any)
-	Fatal(...any)
-	Fatalf(string, ...any)
-	Panic(...any)
-	Panicf(string, ...any)
-	// log compatibility
-	// Fatal(v ...any)
-	// Fatalf(format string, v ...any)
+	LevelLogger
+	// LLog(LoggerLevel, ...any)
+	// LLogf(LoggerLevel, string, ...any)
+	// SetLevel(LoggerLevel)
+	// GetLevel() LoggerLevel
+	// GetLogger() Logger
+	// Trace(...any)
+	// Tracef(string, ...any)
+	// Debug(...any)
+	// Debugf(string, ...any)
+	// Info(...any)
+	// Infof(string, ...any)
+	// Warn(...any)
+	// Warnf(string, ...any)
+	// Error(...any)
+	// Errorf(string, ...any)
+	// Fatal(...any)
+	// Fatalf(string, ...any)
+	// Panic(...any)
+	// Panicf(string, ...any)
+	// // log compatibility
+	// // Fatal(v ...any)
+	// // Fatalf(format string, v ...any)
 	Fatalln(v ...any)
-	// Panic(v ...any)
-	// Panicf(format string, v ...any)
+	// // Panic(v ...any)
+	// // Panicf(format string, v ...any)
 	Panicln(v ...any)
 	Print(v ...any)
 	Printf(format string, v ...any)
@@ -127,7 +153,7 @@ func NewLoggerLevelCoreWrapper(logger Logger) *LoggerLevelCoreWrapper {
 func (l *LoggerLevelCoreWrapper) LLog(level LoggerLevel, v ...any) {
 	if level >= l.level {
 		if level != PrintLogLevel {
-			v = append([]any{level.String()}, v...) // prepend
+			v = append([]any{"[" + level.String() + "]"}, v...) // prepend
 		}
 		l.Log(v...)
 		// l.logger.Log(v...)
@@ -136,6 +162,7 @@ func (l *LoggerLevelCoreWrapper) LLog(level LoggerLevel, v ...any) {
 			os.Exit(1)
 		} else if level == PanicLogLevel {
 			// TODO: panic exit here
+			// how about getting file and line from previous call stack frame
 			panic("logger panic")
 		}
 	}
@@ -144,7 +171,7 @@ func (l *LoggerLevelCoreWrapper) LLog(level LoggerLevel, v ...any) {
 func (l *LoggerLevelCoreWrapper) LLogf(level LoggerLevel, format string, v ...any) {
 	if level >= l.level {
 		if level != PrintLogLevel {
-			format = fmt.Sprintf("%s %s", level.String(), format)
+			format = fmt.Sprintf("[%s] %s", level.String(), format)
 		}
 		l.Logf(format, v...)
 		// l.logger.Logf(format, v...)
@@ -153,6 +180,7 @@ func (l *LoggerLevelCoreWrapper) LLogf(level LoggerLevel, format string, v ...an
 			os.Exit(1)
 		} else if level == PanicLogLevel {
 			// TODO: panic exit here
+			// how about getting file and line from previous call stack frame
 			panic("logger panic")
 		}
 	}
@@ -192,7 +220,7 @@ func (l *CoreMultiLevelLoggerWrapper) SetLogger(level LoggerLevel, logger Logger
 	l.loggers[level] = logger
 }
 
-func (l *CoreMultiLevelLoggerWrapper) getLogger(level LoggerLevel) Logger {
+func (l *CoreMultiLevelLoggerWrapper) GetLogger(level LoggerLevel) Logger {
 	var logger Logger
 	var loggerLevel LoggerLevel
 	for lvl, lgr := range l.loggers {
@@ -210,14 +238,14 @@ func (l *CoreMultiLevelLoggerWrapper) getLogger(level LoggerLevel) Logger {
 
 func (l *CoreMultiLevelLoggerWrapper) LLog(level LoggerLevel, v ...any) {
 	if level >= l.level {
-		logger := l.getLogger(level)
+		logger := l.GetLogger(level)
 		logger.Log(v...)
 	}
 }
 
 func (l *CoreMultiLevelLoggerWrapper) LLogf(level LoggerLevel, format string, v ...any) {
 	if level >= l.level {
-		logger := l.getLogger(level)
+		logger := l.GetLogger(level)
 		logger.Logf(format, v...)
 	}
 }
@@ -226,6 +254,10 @@ func (l *CoreMultiLevelLoggerWrapper) LLogf(level LoggerLevel, format string, v 
 
 type LoggerLevelWrapper struct {
 	LevelCoreLogger
+}
+
+func (l *LoggerLevelWrapper) SetWrappedLogger(logger LevelCoreLogger) {
+	l.LevelCoreLogger = logger
 }
 
 func (l *LoggerLevelWrapper) Trace(v ...any) {
